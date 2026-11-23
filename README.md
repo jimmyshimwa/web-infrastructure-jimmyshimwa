@@ -53,9 +53,9 @@ All thresholds live in one object at the top of `app.js`.
 ## APIs
 (to be filled in at M14)
 
-## Challenges
+## Challenges and sollutions
 - Setting up codeVibe for the second time was a struggle
-
+- Server crashed with "Unexpected token" because I typed `If` instead of `if`. JavaScript is case sensitive. Fixed by correcting the keyword.
 ## Credits
 (to be filled in at M14)
 
