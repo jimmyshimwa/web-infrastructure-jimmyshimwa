@@ -8,6 +8,20 @@ const QUICK = [
 
 ];
 
+const T = {
+    rainWatch: 30,
+    rainWarning: 50,
+    heat: 35,
+    gust: 40,
+    droughtDays: 5,
+    droughtRain: 1,
+    stormCodes: [95, 96, 99],
+
+};
+
+let userType = "farmer";
+let currentDays = [];
+
 function add(parent, tag, text) {
     const el = document.createElement(tag);
     el.textContent = text;
@@ -67,6 +81,8 @@ async function loadWeather(p) {
         console.log(data);
         showCurrent(data.current, p.name);
         showForecast(data.daily);
+        currentDays = makeDays(data.daily);
+        renderHazards();
     } catch {
         showError("Could not load the weather.");
     }
@@ -124,6 +140,101 @@ document.getElementById("search-form").onsubmit = (e) => {
     e.preventDefault();
     searchCity(document.getElementById("city").value);
 };
+
+
+function makeDays(d) {
+    let dry = 0;
+    return d.time.map((date, i) => {
+        dry = d.precipitation_sum[i] < T.droughtRain ? dry + 1 : 0;
+        return {
+            date: date,
+            rain: d.precipitation_sum[i],
+            tmax: d.temperature_2m_max[i],
+            gust: d.wind_gusts_10m_max[i],
+            code: d.weather_code[i],
+            dryDays: dry,
+        };
+    });
+}
+
+function hazards(day, userType) {
+    const miner = userType === "miner";
+    const found = [];
+
+    const rainAdvice = miner 
+    ? "Flooding and landslide risk."
+    : "Waterlogging risk. Delay planting or harvest.";
+  
+    if (day.rain >= T.rainWarning) {
+        found.push({ level: 2, label: "Heavy rain warning", advice: rainAdvice });
+    } else if (day.rain >= T.rainWatch) {
+        found.push({ level: 1, label: "Heavy rain watch", advice: rainAdvice });
+    }
+
+if (day.tmax >= T.heat) {
+    found.push({ level: 1, label: "Extreme heat watch", advice: miner 
+        ? "Heat illness risk. Schedule breaks."
+        : "Heat illness risk. Irrigate early." 
+    });
+}
+
+if (T.stormCodes.includes(day.code)){
+    found.push({level: 2, label : "Thunderstorm warning", advice: miner
+        ? "Lightning risk. Halt surface work."
+        : "Lightning risk. Stay out of the fields."
+     });
+}
+
+if (day.gust >= T.gust) {
+    found.push({ level:1, label: "Strong wind watch", advice: miner 
+        ? "Dust. Secure equipment."
+        : "Crop and spray damage."
+    });
+}
+
+if (!miner && day.dryDays >= T.droughtDays) {
+    found.push({ level: 1, label: "Drought watch",
+        advice: "Dry spell of " + T.droughtDays + " or more days. Plan water use." 
+    });
+}
+
+if (found.length === 0) return { level:0, label: "No hazard", advice: ""};
+
+return found.reduce((a, b) => (b.level > a.level ? b : a));
+}
+
+function showAlerts(days) {
+    const box = document.getElementById("alerts");
+    box.textContent = "";
+    let count = 0;
+    days.forEach((day) => {
+        const h = hazards(day, userType);
+        if (h.level > 0) {
+            const a = add(box, "div", day.date + ": " + h.label + ". " + h.advice)
+            a.className = "alert level" + h.level;
+            count++;
+        }
+    });
+    if (count === 0) add(box, "p", "No hazards expected in the next 7 days.");
+}
+
+function addBadges(days) {
+    const rows = document.querySelectorAll("#forecast li");
+    rows.forEach((li, i) => {
+        const old = li.querySelector(".badge");
+        if (old) old.remove(); 
+        const h = hazards(days[i], userType);
+        if (h.level > 0) {
+            const b = add(li, "span", h.label);
+            b.className = "badge level" + h.level;
+        }
+    });
+}
+
+function renderHazards() {
+    showAlerts(currentDays);
+    addBadges(currentDays);
+}
 
 async function showServer() {
     const el = document.getElementById("server");
