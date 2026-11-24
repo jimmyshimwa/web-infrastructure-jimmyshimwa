@@ -39,11 +39,22 @@ All thresholds live in one object at the top of `app.js`.
 - Version 1 uses forecast data only. Later versions could add local sensors, satellite data and community reports.
 
 ## What it does
-(to be filled in at M14)
+Weather Hazard Planner shows today's weather and a 7 day forecast for a place you choose.
+You pick "farmer" or "miner", and the app flags days that could be dangerous for your work:
+- Farmers: heavy rain, extreme heat, strong wind, thunderstorms, drought.
+- Miners: heavy rain (flooding and landslide risk), extreme heat, strong wind, thunderstorms.
 
+You can search a city, sort days by risk, and filter to hazard days only.
+A second forecast from OpenWeatherMap is compared with Open-Meteo, and the app shows "Forecasts differ" when they disagree.
 ## Run locally
-(# Local test notes
+Requirements: Node.js 20 or newer, and a free OpenWeatherMap key.
 
+1. Clone the repo: `git clone https://github.com/jimmyshimwa/web-infrastructure-jimmyshimwa.git`
+2. Go into the folder.
+3. Copy `.env.example` to `.env`.
+4. Open `.env` and put your key after `OWM_KEY=`.
+5. Start the server: `node --env-file=.env server.js`
+6. Open `http://localhost:3000`.
 Tested locally with `node --env-file=.env server.js` on http://localhost:3000.
 
 | # | Test | Expected | Result |
@@ -73,7 +84,13 @@ Tested locally with `node --env-file=.env server.js` on http://localhost:3000.
 (to be filled in at M14)
 
 ## APIs
-(to be filled in at M14)
+- Open-Meteo Forecast API: https://open-meteo.com/en/docs (no key needed)
+- Open-Meteo Geocoding API: https://open-meteo.com/en/docs/geocoding-api (no key needed)
+- OpenWeatherMap 5 day forecast: https://openweathermap.org/forecast5 (free key needed)
+- Open-Meteo: no key required.
+- OpenWeatherMap: the key is given to the grader in the submission comment box. It is not in this repo.
+- App login: none required.
+
 
 ## Challenges and sollutions
 - Setting up codeVibe for the second time was a struggle
@@ -84,8 +101,9 @@ Tested locally with `node --env-file=.env server.js` on http://localhost:3000.
 - The proxy said the key was missing because the server must be started with `node --env-file=.env server.js`, and `.env` must contain `OWM_KEY`.
 - VS Code auto-inserted require() lines in browser code and I put a `finally` block inside an `if`. A try/catch/finally must be three blocks at the same level. Also `navigator.onLine` needs a capital L. Found with node --check and VS Code warnings.
 ## Credits
-(to be filled in at M14)
-
+- Weather data: Open-Meteo (https://open-meteo.com), licensed CC BY 4.0.
+- Second forecast: OpenWeatherMap (https://openweathermap.org).
+- Learning resources: MDN Web Docs, Node.js docs.
 ## Demo video
 (link later)
 
