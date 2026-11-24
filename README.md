@@ -58,6 +58,8 @@ All thresholds live in one object at the top of `app.js`.
 - Sorting and filtering broke the badges, because I matched badges to rows by position. Fixed by drawing each row (and its badge) from the same sorted and filtered list of day objects.
 - Server crashed with "Unexpected token" because I typed `If` instead of `if`. JavaScript is case sensitive. Fixed by correcting the keyword.
 - VS Code auto-added `const { watch } = require("node:fs")` to app.js. Browsers have no `require`, so the whole script crashed. Fixed by deleting the line. Also fixed a typo `hazzards` and a missing `+`. Used the browser Console and `node --check` to find them.
+- Sorting and filtering broke the badges, because I matched badges to rows by position. Fixed by drawing each row (and its badge) from the same sorted and filtered list of day objects.
+- The proxy said the key was missing because the server must be started with `node --env-file=.env server.js`, and `.env` must contain `OWM_KEY`.
 ## Credits
 (to be filled in at M14)
 

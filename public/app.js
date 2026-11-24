@@ -16,11 +16,12 @@ const T = {
     droughtDays: 5,
     droughtRain: 1,
     stormCodes: [95, 96, 99],
-
+    opinionGap: 10,
 };
 
 let userType = "farmer";
 let currentDays = [];
+let currentPlace = null;
 
 function add(parent, tag, text) {
     const el = document.createElement(tag);
@@ -55,7 +56,7 @@ function showCurrent(c, name) {
     add(box, "p", "Wind: " + c.wind_speed_10m + " km/h ");
 }
 
-function showForecast(d) {
+function showForecast(days) {
     const list = document.getElementById("forecast");
     list.textContent = "";
     const view = getView(days);
@@ -73,7 +74,13 @@ function showForecast(d) {
             const b = add(li, "span", h.label);
             b.className = "badge level" + h.level;
         }    
-            
+        if (typeof day.owm === "number") {
+            add(li, "span", " | OpenWeatherMap rain: " + day.owm.toFixed(1) + " mm");
+            if (forecastsDiffer(day)) {
+                const f = add(li, "span", "Forecasts differ");
+                f.className = "badge level1";
+            }
+        }    
     });
     
 }
@@ -94,6 +101,7 @@ async function loadWeather(p) {
         showCurrent(data.current, p.name);
         currentDays = makeDays(data.daily);
         renderHazards();
+        loadSecondOpinion(p);
     } catch {
         showError("Could not load the weather.");
     }
@@ -228,25 +236,12 @@ function showAlerts(days) {
     days.forEach((day) => {
         const h = hazards(day, userType);
         if (h.level > 0) {
-            const a = add(box, "div", day.date + ": " + h.label + ". " + h.advice)
+            const a = add(box, "div", day.date + ": " + h.label + ". " + h.advice);
             a.className = "alert level" + h.level;
             count++;
         }
     });
     if (count === 0) add(box, "p", "No hazards expected in the next 7 days.");
-}
-
-function addBadges(days) {
-    const rows = document.querySelectorAll("#forecast li");
-    rows.forEach((li, i) => {
-        const old = li.querySelector(".badge");
-        if (old) old.remove(); 
-        const h = hazards(days[i], userType);
-        if (h.level > 0) {
-            const b = add(li, "span", h.label);
-            b.className = "badge level" + h.level;
-        }
-    });
 }
 
 function renderHazards() {
@@ -255,7 +250,7 @@ function renderHazards() {
 }
 
 function getView(days) {
-    const sprt = document.getElementById("sort").value;
+    const sort = document.getElementById("sort").value;
     const filter = document.getElementById("filter").value;
 
     const view = days.filter((day) => {
@@ -271,6 +266,42 @@ function getView(days) {
         a.date.localeCompare(b.date));
     }
     return view;
+}
+
+function forecastsDiffer(day) {
+    const bigGap = Math.abs(day.rain - day.owm) >= T.opinionGap;
+    const onlyOne = (day.rain >= T.rainWatch) !== (day.owm >= T.rainWatch);
+    return bigGap || onlyOne;
+}
+
+async function loadSecondOpinion(p) {
+    const note = document.getElementById("second-opinion");
+    note.textContent = "";
+    try {
+        const res = await fetch("/api/owm?lat=" + p.lat + "&lon=" + p.lon);        const data = await res.json();
+        if (currentPlace !== p) return;
+        if (!res.ok) {
+            note.textContent = "Second opinion unavailable: " + data.error;
+            return;
+        }
+        if (!Array.isArray(data.list) || !data.city) throw new Error("bad data");
+
+        const rain = {};
+        data.list.forEach((item) => {
+            const date = new Date((item.dt + data.city.timezone) * 1000)
+                .toISOString().slice(0, 10);
+            const mm = item.rain && item.rain["3h"] ? item.rain["3h"] : 0;
+            rain[date] = (rain[date] || 0) + mm;
+        });
+        currentDays.forEach((day) => {
+            if (day.date in rain) day.owm = rain[day.date];
+        });
+        renderHazards();
+    } catch {
+        if (currentPlace === p) {
+            note.textContent = "Second opinion unavailable right now.";
+        }
+    }
 }
 
 async function showServer() {
