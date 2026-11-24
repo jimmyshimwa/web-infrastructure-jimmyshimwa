@@ -42,7 +42,29 @@ All thresholds live in one object at the top of `app.js`.
 (to be filled in at M14)
 
 ## Run locally
-(to be filled in at M14)
+(# Local test notes
+
+Tested locally with `node --env-file=.env server.js` on http://localhost:3000.
+
+| # | Test | Expected | Result |
+|---|------|----------|--------|
+| 1 | Click Kigali | Weather card, 7 rows, alert banner | |
+| 2 | Click Nairobi | Same, for Nairobi | |
+| 3 | Click Lagos | Same, for Lagos | |
+| 4 | Click Accra | Same, for Accra | |
+| 5 | Search "Kigali" | Picker with several matches, then weather after picking one | |
+| 6 | Search "Zzzzzzqq" | "City not found. Check the spelling." | |
+| 7 | Search with an empty box | "Please type a city name." | |
+| 8 | Search `<b>hi</b>` | "Please use letters only..." and nothing breaks | |
+| 9 | Paste 80 characters | Box stops at 50 characters | |
+| 10 | Browser offline (DevTools, Network, Offline) | "You are offline. Check your internet connection." | |
+| 11 | Slow request (timeout set to 1 ms) | "The request took too long. Try again." | |
+| 12 | Server without OWM_KEY | Open-Meteo data shows, note says second opinion unavailable | |
+| 13 | Wrong OWM_KEY | Note says the key is invalid or not active yet | |
+| 14 | Click the same place twice | No new Open-Meteo request the second time (cache) | |
+| 15 | Switch Farmer to Miner | Alerts and advice change, no reload | |
+| 16 | Sort by hazard level, filter hazard days only | Rows reorder and filter correctly | |
+| 17 | Phone width 375 px | No sideways scrolling, buttons easy to tap | |
 
 ## Deployment
 (to be filled in at M14)

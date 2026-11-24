@@ -97,9 +97,15 @@ async function loadWeather(p) {
     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_gusts_10m_max" +
     "&timezone=auto&forecast_days=7";
     try {
-        const data = await fetchJson(url);
-        checkForecast(data);
+        const cacheKey = "forecast:" + p.lat.toFixed(2) + "," + p.lon.toFixed(2);
+        let data = readCache(cacheKey);
+        if (!data) {
+            data = await fetchJson(url);
+            checkForecast(data);
+            saveCache(cacheKey, data);
+        }
         showCurrent(data.current, p.name);
+        currentPlace = p;
         currentDays = makeDays(data.daily);
         renderHazards();
         loadSecondOpinion(p);
@@ -110,9 +116,12 @@ async function loadWeather(p) {
 }
 
 async function searchCity(text) {
-    const name = text.trim().slice(0, 50);
-    if (name === '') {
+        const name = text.trim().replace(/\s+/g, " ").slice(0, 50);    if (name === '') {
         showError("Please type a city name.");
+        return;
+    }
+    if (!/^[\p{L}\p{M}\s.'',-]+$/u.test(name)) {
+        showError("Please use letters only. Numbers and symbols are not allowed.");
         return;
     }
     showError("");
@@ -160,7 +169,7 @@ function makeQuickButtons() {
 
 document.getElementById("search-form").onsubmit = (e) => {
     e.preventDefault();
-    searchCity(document.getElementById("city").value);
+    debouncedSearch(document.getElementById("city").value);
 };
 
 document.getElementById("user-type").onchange = (e) => {
@@ -372,7 +381,7 @@ function pct(value) {
 }
 
 function makeRainBar(parent, mm) {
-    add(parent, "div", "Rain" + mm + " mm").className = "bar-label";
+    add(parent, "div", "Rain " + mm + " mm").className = "bar-label";
     const track = add(parent, "div", "");
     track.className = "bar-track";
     const fill = add(track, "div", "");
@@ -382,7 +391,7 @@ function makeRainBar(parent, mm) {
 }
 
 function makeTempBar(parent, tmin, tmax) {
-    add(parent, "div", "Temperature " + tmin + " to " + tmax + "°C").className = "bar-label";
+    add(parent, "div", "Temperature " + tmin + " to " + tmax + " °C").className = "bar-label";
     const track = add(parent, "div", "");
     track.className = "bar-track";
     const fill = add(track, "div", "");
@@ -393,6 +402,39 @@ function makeTempBar(parent, tmin, tmax) {
     fill.style.left = left + "%";
     fill.style.width = (right - left) + "%";
 }
+
+const CACHE_MS = 10 * 60 * 1000;
+
+function readCache(key) {
+    try {
+        const saved = JSON.parse(localStorage.getItem(key));
+        if (saved && Date.now() - saved.time < CACHE_MS) {
+            checkForecast(saved.data);
+            return saved.data;
+        }
+    } catch {
+
+    } return null;
+}
+
+function saveCache(key, data) {
+    try {
+        localStorage.setItem(key, JSON.stringify({ time: Date.now(), data: data }))
+    } catch {
+        
+    }
+}
+
+function debounce(fn, ms) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), ms);
+    };
+}
+
+const debouncedSearch = debounce(searchCity, 400);
+
 
 async function showServer() {
     const el = document.getElementById("server");
