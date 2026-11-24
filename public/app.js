@@ -70,6 +70,7 @@ function showForecast(days) {
             `rain ${day.rain} mm, gust ${day.gust} km/h, ` +
             conditionText(day.code));
         const h = hazards(day, userType);
+        li.className = "sev" + h.level;
         if (h.level > 0) {
             const b = add(li, "span", h.label);
             b.className = "badge level" + h.level;
@@ -80,9 +81,10 @@ function showForecast(days) {
                 const f = add(li, "span", "Forecasts differ");
                 f.className = "badge level1";
             }
-        }    
+        }
+        makeRainBar(li, day.rain);
+        makeTempBar(li, day.tmin, day.tmax);    
     });
-    
 }
 
 async function loadWeather(p) {
@@ -113,6 +115,8 @@ async function searchCity(text) {
         showError("Please type a city name.");
         return;
     }
+    showError("");
+    document.getElementById("matches").textContent = "";
     try {
         const data = await fetchJson(
             "https://geocoding-api.open-meteo.com/v1/search?name=" +
@@ -315,7 +319,7 @@ async function fetchJson(url) {
         if (err.name === "AbortError") {
             throw new Error("The request took too long. Try again.");
         }
-        throw new Error("Could not reacg the service. Check your internet connection.");
+        throw new Error("Could not reach the service. Check your internet connection.");
     } finally {
             clearTimeout(timer);
         }
@@ -331,7 +335,7 @@ async function fetchJson(url) {
         try {
             return await res.json();
         } catch {
-            throw new Error("The service sent sata we could not read.");
+            throw new Error("The service sent data we could not read.");
         }
 }
 
@@ -360,6 +364,35 @@ function clearResults() {
 window.addEventListener("offline", () => showError("You are offline. Check your internet connection."));
 window.addEventListener("online", () => showError(""));
 
+const TEMP_MIN = 0;
+const TEMP_MAX = 40;
+
+function pct(value) {
+    return Math.min(100, Math.max(0, value));
+}
+
+function makeRainBar(parent, mm) {
+    add(parent, "div", "Rain" + mm + " mm").className = "bar-label";
+    const track = add(parent, "div", "");
+    track.className = "bar-track";
+    const fill = add(track, "div", "");
+    const color = mm >= T.rainWarning ? "warning" : mm >= T.rainWatch ? "watch" : "rain";
+    fill.className = "bar-fill " + color;
+    fill.style.width = pct(mm / T.rainWarning * 100) + "%";
+}
+
+function makeTempBar(parent, tmin, tmax) {
+    add(parent, "div", "Temperature " + tmin + " to " + tmax + "°C").className = "bar-label";
+    const track = add(parent, "div", "");
+    track.className = "bar-track";
+    const fill = add(track, "div", "");
+    fill.className = "bar-fill temp";
+    const  range = TEMP_MAX - TEMP_MIN;
+    const left = pct((tmin - TEMP_MIN) / range * 100 );
+    const right = pct((tmax - TEMP_MIN) / range * 100);
+    fill.style.left = left + "%";
+    fill.style.width = (right - left) + "%";
+}
 
 async function showServer() {
     const el = document.getElementById("server");
