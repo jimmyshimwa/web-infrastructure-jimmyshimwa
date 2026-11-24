@@ -1,0 +1,12 @@
+[Unit]
+Description=Weatehr Hazard Planner
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/weather 
+ExecStart=/usr/bin/node --env-file=.env server.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
