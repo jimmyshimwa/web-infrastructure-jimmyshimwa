@@ -95,15 +95,15 @@ async function loadWeather(p) {
     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_gusts_10m_max" +
     "&timezone=auto&forecast_days=7";
     try {
-        const res = await fetch(url);
-        const data = await res.json();
-        console.log(data);
+        const data = await fetchJson(url);
+        checkForecast(data);
         showCurrent(data.current, p.name);
         currentDays = makeDays(data.daily);
         renderHazards();
         loadSecondOpinion(p);
-    } catch {
-        showError("Could not load the weather.");
+    } catch (err) {
+        clearResults();
+        showError(err.message);
     }
 }
 
@@ -114,18 +114,17 @@ async function searchCity(text) {
         return;
     }
     try {
-        const res = await fetch(
-            "https://geocoding-api.open-meteo.com/v1/search?name=" + 
-            encodeURIComponent(name) + "&count=5");     
+        const data = await fetchJson(
+            "https://geocoding-api.open-meteo.com/v1/search?name=" +
+            encodeURIComponent(name) + "&count=5");    
             
-        const data = await res.json();
-        if (!data.results || data. results.length === 0) {
+        if (!data || !Array.isArray(data.results) || data.results.length === 0) {
             showError("City not found. Check the spelling. ");
             return;
         }
         showMatches(data.results);     
-        } catch {
-            showError("Could not search for the city.");
+        } catch (err){
+            showError(err.message);
         }
 }     
 
@@ -278,14 +277,11 @@ async function loadSecondOpinion(p) {
     const note = document.getElementById("second-opinion");
     note.textContent = "";
     try {
-        const res = await fetch("/api/owm?lat=" + p.lat + "&lon=" + p.lon);        const data = await res.json();
+        const data = await fetchJson("/api/owm?lat=" + p.lat + "&lon=" +p.lon);
         if (currentPlace !== p) return;
-        if (!res.ok) {
-            note.textContent = "Second opinion unavailable: " + data.error;
-            return;
+        if (!Array.isArray(data.list) || !data.city) {
+            throw new Error("OpenWeatherMap sent incomplete data.");
         }
-        if (!Array.isArray(data.list) || !data.city) throw new Error("bad data");
-
         const rain = {};
         data.list.forEach((item) => {
             const date = new Date((item.dt + data.city.timezone) * 1000)
@@ -297,12 +293,73 @@ async function loadSecondOpinion(p) {
             if (day.date in rain) day.owm = rain[day.date];
         });
         renderHazards();
-    } catch {
+    } catch (err) {
         if (currentPlace === p) {
-            note.textContent = "Second opinion unavailable right now.";
+            note.textContent = "Second opinion unavailable: " + err.message;
         }
     }
 }
+
+async function fetchJson(url) {
+
+    if (!navigator.onLine) {
+        throw new Error("You are offline. Check your internet connection.");
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    let res;
+    try {
+        res = await fetch(url, { signal: controller.signal });
+    } catch (err) {
+        if (err.name === "AbortError") {
+            throw new Error("The request took too long. Try again.");
+        }
+        throw new Error("Could not reacg the service. Check your internet connection.");
+    } finally {
+            clearTimeout(timer);
+        }
+
+        if (!res.ok) {
+            const body = await res.json().catch(() => null);
+            if (body && typeof body.error === "string") throw new Error(body.error);
+            if (res.status === 429) throw new Error("Too many requests. Wait a minute and try again.");
+            if (res.status === 401) throw new Error("The API key is invalid or not active yet.");
+            throw new Error("The weather service is not working right now (error " + res.status + ").");
+        }
+
+        try {
+            return await res.json();
+        } catch {
+            throw new Error("The service sent sata we could not read.");
+        }
+}
+
+function checkForecast(data) {
+    const d = data && data.daily;
+    const ok = data && data.current && d &&
+        typeof data.current.temperature_2m === "number" &&
+        Array.isArray(d.time) && d.time.length > 0 &&
+        Array.isArray(d.precipitation_sum) &&
+        Array.isArray(d.temperature_2m_max) &&
+        Array.isArray(d.temperature_2m_min) &&
+        Array.isArray(d.wind_gusts_10m_max) &&
+        Array.isArray(d.weather_code);
+    if (!ok) {
+        throw new Error("The weather data is incomplete or in an unexpected format.");
+    }                     
+}        
+
+function clearResults() {
+    document.getElementById("current").textContent = "";
+    document.getElementById("forecast").textContent = "";
+    document.getElementById("alerts").textContent = "";
+    document.getElementById("second-opinion").textContent = "";
+}
+
+window.addEventListener("offline", () => showError("You are offline. Check your internet connection."));
+window.addEventListener("online", () => showError(""));
+
 
 async function showServer() {
     const el = document.getElementById("server");
