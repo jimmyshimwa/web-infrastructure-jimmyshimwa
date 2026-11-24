@@ -55,7 +55,9 @@ All thresholds live in one object at the top of `app.js`.
 
 ## Challenges and sollutions
 - Setting up codeVibe for the second time was a struggle
+- Sorting and filtering broke the badges, because I matched badges to rows by position. Fixed by drawing each row (and its badge) from the same sorted and filtered list of day objects.
 - Server crashed with "Unexpected token" because I typed `If` instead of `if`. JavaScript is case sensitive. Fixed by correcting the keyword.
+- VS Code auto-added `const { watch } = require("node:fs")` to app.js. Browsers have no `require`, so the whole script crashed. Fixed by deleting the line. Also fixed a typo `hazzards` and a missing `+`. Used the browser Console and `node --check` to find them.
 ## Credits
 (to be filled in at M14)
 

@@ -58,12 +58,24 @@ function showCurrent(c, name) {
 function showForecast(d) {
     const list = document.getElementById("forecast");
     list.textContent = "";
-    d.time.forEach((date, i) => {
-        add(list, "li", 
-            `${date}: ${d.temperature_2m_max[i]}/${d.temperature_2m_min[i]} °C, ` + 
-            `rain ${d.precipitation_sum[i]} mm, gust ${d.wind_gusts_10m_max[i]} km/h, ` + 
-            conditionText(d.weather_code[i]));
+    const view = getView(days);
+    if (view.length === 0) {
+        add(list, "li", "No days match this filter.");
+        return;
+    }
+    view.forEach((day) => {
+        const li = add(list, "li",
+            `${day.date}: ${day.tmax}/${day.tmin} °C, ` +
+            `rain ${day.rain} mm, gust ${day.gust} km/h, ` +
+            conditionText(day.code));
+        const h = hazards(day, userType);
+        if (h.level > 0) {
+            const b = add(li, "span", h.label);
+            b.className = "badge level" + h.level;
+        }    
+            
     });
+    
 }
 
 async function loadWeather(p) {
@@ -80,7 +92,6 @@ async function loadWeather(p) {
         const data = await res.json();
         console.log(data);
         showCurrent(data.current, p.name);
-        showForecast(data.daily);
         currentDays = makeDays(data.daily);
         renderHazards();
     } catch {
@@ -141,6 +152,12 @@ document.getElementById("search-form").onsubmit = (e) => {
     searchCity(document.getElementById("city").value);
 };
 
+document.getElementById("user-type").onchange = (e) => {
+    userType = e.target.value;
+    renderHazards();
+};
+document.getElementById("sort").onchange = renderHazards;
+document.getElementById("filter").onchange = renderHazards;
 
 function makeDays(d) {
     let dry = 0;
@@ -150,6 +167,7 @@ function makeDays(d) {
             date: date,
             rain: d.precipitation_sum[i],
             tmax: d.temperature_2m_max[i],
+            tmin: d.temperature_2m_min[i],
             gust: d.wind_gusts_10m_max[i],
             code: d.weather_code[i],
             dryDays: dry,
@@ -233,7 +251,26 @@ function addBadges(days) {
 
 function renderHazards() {
     showAlerts(currentDays);
-    addBadges(currentDays);
+    showForecast(currentDays);
+}
+
+function getView(days) {
+    const sprt = document.getElementById("sort").value;
+    const filter = document.getElementById("filter").value;
+
+    const view = days.filter((day) => {
+        const level = hazards(day, userType).level;
+        if (filter === "hazard") return level > 0;
+        if (filter === "1" || filter === "2") return level === Number(filter);
+        return true;
+    });
+
+    if (sort === "hazard") {
+        view.sort((a, b) => 
+        hazards(b, userType).level - hazards(a, userType).level || 
+        a.date.localeCompare(b.date));
+    }
+    return view;
 }
 
 async function showServer() {
