@@ -124,7 +124,7 @@ Result (the answers alternate between the two servers):
 - Second forecast: OpenWeatherMap (https://openweathermap.org).
 - Learning resources: MDN Web Docs, Node.js docs.
 ## Demo video
-(link later)
+https://youtu.be/hneFH3shGS0
 
 ## Deployed link
-(link later)
+http://35.178.212.114/
