@@ -57,31 +57,36 @@ Requirements: Node.js 20 or newer, and a free OpenWeatherMap key.
 6. Open `http://localhost:3000`.
 Tested locally with `node --env-file=.env server.js` on http://localhost:3000.
 
-| # | Test | Expected | Result |
-|---|------|----------|--------|
-| 1 | Click Kigali | Weather card, 7 rows, alert banner | |
-| 2 | Click Nairobi | Same, for Nairobi | |
-| 3 | Click Lagos | Same, for Lagos | |
-| 4 | Click Accra | Same, for Accra | |
-| 5 | Search "Kigali" | Picker with several matches, then weather after picking one | |
-| 6 | Search "Zzzzzzqq" | "City not found. Check the spelling." | |
-| 7 | Search with an empty box | "Please type a city name." | |
-| 8 | Search `<b>hi</b>` | "Please use letters only..." and nothing breaks | |
-| 9 | Paste 80 characters | Box stops at 50 characters | |
-| 10 | Browser offline (DevTools, Network, Offline) | "You are offline. Check your internet connection." | |
-| 11 | Slow request (timeout set to 1 ms) | "The request took too long. Try again." | |
-| 12 | Server without OWM_KEY | Open-Meteo data shows, note says second opinion unavailable | |
-| 13 | Wrong OWM_KEY | Note says the key is invalid or not active yet | |
-| 14 | Click the same place twice | No new Open-Meteo request the second time (cache) | |
-| 15 | Switch Farmer to Miner | Alerts and advice change, no reload | |
-| 16 | Sort by hazard level, filter hazard days only | Rows reorder and filter correctly | |
-| 17 | Phone width 375 px | No sideways scrolling, buttons easy to tap | |
-
 ## Deployment
-(to be filled in at M14)
+The app runs on two web servers behind one load balancer:
+- web-01: 18.171.159.225 (`SERVER_NAME=web01`)
+- web-02: 13.135.252.195 (`SERVER_NAME=web02`)
+- lb-01: 35.178.212.114 (load balancer)
 
+Deployed URL: http://35.178.212.114
+
+Steps on web-01 and web-02 (Ubuntu 20.04 ARM, user `ubuntu`):
+1. Connect with SSH. My public key was saved in my intranet profile.
+2. `sudo apt-get update` then `sudo apt-get install -y nginx git curl xz-utils`
+3. Install Node 20 from nodejs.org. These servers are ARM, so I used the `linux-arm64` build and extracted it into `/usr/local`.
+4. `sudo git clonehttps://github.com/jimmyshimwa/web-infrastructure-jimmyshimwa.git /var/www/weather`, then `sudo chown -R ubuntu:ubuntu /var/www/weather`
+5. Create `.env` from `.env.example` with `OWM_KEY`, `SERVER_NAME` (`web01` or `web02`) and `PORT=3000`. Run `chmod 600 .env`.
+6. Copy `deploy/weather.service` to `/etc/systemd/system/`, then `sudo systemctl daemon-reload` and `sudo systemctl enable --now weather`.
+7. Copy `deploy/nginx-web.conf` to `/etc/nginx/sites-available/weather`, link it into `sites-enabled`, remove the default site, then `sudo nginx -t` and `sudo systemctl reload nginx`.
+8. Test: `curl http://127.0.0.1/api/server`
 ## Load balancer
-(to be filled in at M14)
+On lb-01 I installed Nginx and used `deploy/nginx-lb.conf`. It lists both web servers in an `upstream` block, so Nginx uses round robin. If one server gives an error, `proxy_next_upstream` tells it to try the other one.
+
+Setup on lb-01:
+1. `sudo apt-get update` then `sudo apt-get install -y nginx`
+2. Copy `deploy/nginx-lb.conf` to `/etc/nginx/conf.d/weather-lb.conf`.
+3. Remove the default site: `sudo rm -f /etc/nginx/sites-enabled/default`
+4. Check the config: `sudo nginx -t`
+5. Reload: `sudo systemctl reload nginx`
+
+Test: `for i in 1 2 3 4 5 6; do curl -s http://35.178.212.114/api/server; echo; done`
+
+Result (the answers alternate between the two servers):
 
 ## APIs
 - Open-Meteo Forecast API: https://open-meteo.com/en/docs (no key needed)
@@ -90,9 +95,23 @@ Tested locally with `node --env-file=.env server.js` on http://localhost:3000.
 - Open-Meteo: no key required.
 - OpenWeatherMap: the key is given to the grader in the submission comment box. It is not in this repo.
 - App login: none required.
+- I chose Open-Meteo and OpenWeatherMap because they provide the weather data my app needs (rain, temperature, wind). Open-Meteo needs no key. OpenWeatherMap gives a second source to compare.
+- Both are called over HTTPS, and both have official documentation (links above).
+- I read the pricing pages. Open-Meteo's free plan is for non-commercial use, with limits of 600 calls per minute and 10,000 per day. OpenWeatherMap's free plan allows 60 calls per minute and 1,000,000 per month, and includes the 5 day / 3 hour forecast.
+- Open-Meteo data is licensed CC BY 4.0, so I credit it in the app footer and in this README.
+- I cache results for 10 minutes, so my app stays well under both limits.
+- My OpenWeatherMap key is only used on my server. It is never in the browser code or in the repo.
+- Open-Meteo Forecast API: https://open-meteo.com/en/docs (no key needed)
+- Open-Meteo Geocoding API: https://open-meteo.com/en/docs/geocoding-api (no key needed)
+- OpenWeatherMap 5 day forecast: https://openweathermap.org/forecast5 (free key needed)
+## API keys and credentials
+- Open-Meteo: no key required.
+- OpenWeatherMap: the key is given to the grader in the submission comment box. It is not in this repo.
+- To use your own key: create a free account at openweathermap.org, copy `.env.example` to `.env`, and set `OWM_KEY=`.
+- My OpenWeatherMap key is only used on my server. It is never in the browser code or in the repo.
+- App login: none required.
 
-
-## Challenges and sollutions
+## Challenges and solutions
 - Setting up codeVibe for the second time was a struggle
 - Sorting and filtering broke the badges, because I matched badges to rows by position. Fixed by drawing each row (and its badge) from the same sorted and filtered list of day objects.
 - Server crashed with "Unexpected token" because I typed `If` instead of `if`. JavaScript is case sensitive. Fixed by correcting the keyword.
